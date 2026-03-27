@@ -32,3 +32,40 @@ model Session {
   refreshToken        String?
   refreshTokenExpires DateTime?
 }
+
+model Order {
+  id              String    @id
+  shopifyOrderId  String    @unique
+  shop            String
+  customerEmail   String?
+  customerName    String?
+  status          String    @default("pending")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  fulfillments    FulfillmentGroup[]
+}
+
+model FulfillmentGroup {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id])
+  vendor      String
+  location    String?
+  status      String   @default("pending")
+  notified    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  items       LineItem[]
+}
+
+model LineItem {
+  id                 String           @id @default(cuid())
+  fulfillmentGroupId String
+  fulfillmentGroup   FulfillmentGroup @relation(fields: [fulfillmentGroupId], references: [id])
+  shopifyLineItemId  String
+  title              String
+  vendor             String
+  quantity           Int
+  price              String
+  createdAt          DateTime         @default(now())
+}
