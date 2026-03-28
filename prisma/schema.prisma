@@ -34,7 +34,7 @@ model Session {
 }
 
 model Order {
-  id              String    @id
+  id              String    @id @default(cuid())
   shopifyOrderId  String    @unique
   shop            String
   customerEmail   String?
