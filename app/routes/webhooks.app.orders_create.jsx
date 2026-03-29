@@ -11,56 +11,57 @@ export const action = async ({request}) => {
   const customerEmail = payload.customer.email;
   const lineItems = payload.line_items;
 
-  const vendors = Object.groupBy(lineItems, (lineItem) => {
-    return lineItem.vendor;
-  })
-
   const groupByVendor = lineItems.reduce(
     (accumulator, lineItem) => {
       const key = lineItem.vendor;
-
       if(!accumulator[key]) {
-        accumulator[key]= [];
+        accumulator[key] = [];
       }
-
       accumulator[key].push(lineItem);
-
       return accumulator;
     }, {})
 
-    console.log(`Received ${topic} webhook for ${shop}`);
+  console.log(`Received ${topic} webhook for ${shop}`);
 
-    if(session) {
-      await db.order.create({
+  if(session) {
+    // capture the created order so we have its id
+    const order = await db.order.create({
+      data: {
+        shopifyOrderId,
+        customerName,
+        customerEmail,
+        shop,
+      }
+    })
+
+    // group line items by vendor then create fulfillment groups and line items in the DB.
+    // use DB id, not shopifyOrderId to link fulfillment groups to the order
+    for (const vendor of Object.keys(groupByVendor)) {
+      const vendorItems = groupByVendor[vendor];
+
+      // create fulfillment group first, capture id
+      const fulfillmentGroup = await db.fulfillmentGroup.create({
         data: {
-          shopifyOrderId,
-          customerName,
-          customerEmail,
-          shop,
-    }})
+          orderId: order.id,
+          vendor,
+        }
+      })
 
-      Object.keys(groupByVendor).map((vendor) => {
-        const lineItems = groupByVendor[vendor];
-
-
-        lineItems.map((lineItem) => {
-          db.lineItem.create({
-            data: {
-              shopifyLineItemId: lineItem.id,
-              title: lineItem.title,
-              quantity: lineItem.quantity,
-              price: lineItem.price,
-              vendor,
-              order: {
-                connect: {
-                  shopifyOrderId
-                }
-              }
-            }
-          })
+      //created each line item connected to the fulfillment group
+      for (const lineItem of vendorItems) {
+        await db.lineItem.create({
+          data: {
+            shopifyLineItemId: String(lineItem.id),
+            title: lineItem.title,
+            quantity: lineItem.quantity,
+            price: String(lineItem.price),
+            vendor,
+            fulfillmentGroupId: fulfillmentGroup.id,
+          }
         })
-      }})
+      }
     }
+  }
 
-
+  return new Response();
 }
