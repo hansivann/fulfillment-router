@@ -62,7 +62,7 @@ model LineItem {
   id                 String           @id @default(cuid())
   fulfillmentGroupId String
   fulfillmentGroup   FulfillmentGroup @relation(fields: [fulfillmentGroupId], references: [id])
-  shopifyLineItremId  String
+  shopifyLineItemId  String
   title              String
   vendor             String
   quantity           Int
